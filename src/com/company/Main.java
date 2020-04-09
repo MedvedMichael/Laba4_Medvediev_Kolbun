@@ -6,3 +6,4 @@ public class Main {
         WaveFile waveFile = new WaveFile("input.wav");
     }
 }
+

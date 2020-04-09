@@ -13,17 +13,18 @@ public class WaveFile {
     }
 
     private void parseFile(String path) {
+        int headerLengthInBytes = 44;
         File file = new File(path);
-        byte[] header = new byte[44];
+        byte[] header = new byte[headerLengthInBytes];
 
-        byte[] byteInput = new byte[(int) file.length() - 44];
+        byte[] byteInput = new byte[(int) file.length() - headerLengthInBytes];
         short[] input = new short[(int) (byteInput.length / 2f)];
-        double kLength = 3.125;
+        double kLength = 2;
 
         try {
             FileInputStream fis = new FileInputStream(file);
             fis.read(header, 0, header.length);
-            fis.read(byteInput, 44, byteInput.length - 45);
+            fis.read(byteInput, headerLengthInBytes, byteInput.length - headerLengthInBytes - 1);
             ByteBuffer.wrap(byteInput).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(input);
         } catch (Exception e) {
             e.printStackTrace();
@@ -32,16 +33,10 @@ public class WaveFile {
         int[] headerInt = new int[header.length / 4];
         ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(headerInt);
 //        System.out.println(headerInt[10]);
-        int newSize = (int) Math.round(headerInt[10] * kLength);
+        int newSize = (int) Math.ceil(headerInt[headerInt.length - 1] * kLength);
         headerInt[1] = 36 + newSize;
-        headerInt[10] = newSize;
-//        System.out.println((char)(headerShort[0]) + ((char)headerShort[1]) + ((char)headerShort[2]) + ((char)headerShort[3]));
-//        System.out.println((header[41]));
-//        header[41] = (byte) (Math.ceil(header[41]*kLength));
-//        header[6] = (byte)1;
-//        header[42] = (byte)1;
-//        header[5] = header[41];
-        System.out.println();
+        headerInt[headerInt.length - 1] = newSize;
+
 
         ByteBuffer headerOutBuf = ByteBuffer.allocate(header.length);
         headerOutBuf.order(ByteOrder.LITTLE_ENDIAN);
@@ -49,38 +44,119 @@ public class WaveFile {
             headerOutBuf.putInt(headerInt[i]);
 
 
-        int newLength = (int) Math.round(input.length * kLength);
+        int newLength = (int) Math.ceil(byteInput.length * kLength);
+
+        int[] newArrayX = new int[input.length];
+        for (int i = 0; i < newArrayX.length; i++) {
+            newArrayX[i] = (int) Math.round(i * kLength);
+        }
+
+//        SplineItem[] splines = getSplines(newArrayX,input);
+
         //System.out.println( byteInput.length+ " L " + newLength);
-        ByteBuffer outBuf = ByteBuffer.allocate(2 * newLength);
+        ByteBuffer outBuf = ByteBuffer.allocate(4*newArrayX[newArrayX.length-1]);
         outBuf.order(ByteOrder.LITTLE_ENDIAN);
 
-        short lastValue = Byte.MAX_VALUE / 2;
+//        System.out.println(Arrays.toString(newArrayX));
+
+
+        //Это вариант с кубическими сплайнами, который выдает металлический скрежет
+//        int counter = 0;
+//        int delta = 0;
+//        while(counter < newArrayX.length){
+//            while(counter+delta != newArrayX[counter])
+//            {
+//                outBuf.putShort(getValueInterpolated(splines,counter+delta));
+//                delta++;
+//            }
+//            outBuf.putShort(input[counter]);
+//            counter++;
+//        }
+
+
+        short lastValue = 0;
         for (int i = 0; i < input.length; i++) {
             short sample = input[i];
-//            System.out.print(sample + " ");
-            if ((int) ((i + 1) * kLength) > i + 1) {
+            if ((int) Math.round((i + 1) * kLength) > i + 1) {
                 int temp = (int) ((i + 1) * kLength) - (int) (i * kLength) - 1;
-//                System.out.print(temp + " ");
                 for (int j = 0; j < temp; j++) {
-//                    System.out.print(((float)(j+1))/((float)(temp+1)) + " ");
-                    short tempValue = (short) (lastValue + (short) (((float) (j + 1)) / ((float) (temp + 1)) * (sample - lastValue)));
-//                    System.out.print(tempValue + " ");
+                    short tempValue = (short) Math.floor(lastValue + (short) (((float) (j + 1)) / ((float) (temp + 1)) * (sample - lastValue)));
                     outBuf.putShort(tempValue);
                 }
+
             }
             outBuf.putShort(sample);
             lastValue = sample;
-//            System.out.println();
         }
 
         try {
             FileOutputStream fos = new FileOutputStream("test2.wav");
             fos.write(headerOutBuf.array(), 0, header.length);
-            fos.write(outBuf.array(), 44, outBuf.array().length - 45);
+            fos.write(outBuf.array(), headerLengthInBytes, outBuf.array().length - headerLengthInBytes - 1);
             fos.flush();
             fos.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+    private SplineItem[] getSplines(int[] arrayX, short[] arrayY) {
+        SplineItem[] splines = new SplineItem[arrayX.length];
+        Arrays.fill(splines, new SplineItem(0, 0, 0, 0, 0));
+        for (int i = 0; i < arrayX.length; i++) {
+            splines[i].x = arrayX[i];
+            splines[i].a = arrayY[i];
+        }
+
+        double[] alpha = new double[arrayX.length - 1];
+        double[] beta = new double[arrayX.length - 1];
+
+
+        for (int i = 1; i < arrayX.length - 1; i++) {
+            double hi = arrayX[i] - arrayX[i - 1];
+            double hi1 = arrayX[i + 1] - arrayX[i];
+            double C = 2.0 * (hi + hi1);
+            double F = 6.0 * ((arrayY[i + 1] - arrayY[i]) / hi1 - (arrayY[i] - arrayY[i - 1]) / hi);
+            double z = (hi * alpha[i - 1] + C);
+            alpha[i] = -hi1 / z;
+            beta[i] = (F - hi * beta[i - 1]) / z;
+        }
+
+        for (int i = arrayX.length - 2; i > 0; i--)
+            splines[i].c = alpha[i] * splines[i + 1].c + beta[i];
+
+        for (int i = arrayX.length - 1; i > 0; i--) {
+            double hi = arrayX[i] - arrayX[i - 1];
+            splines[i].d = (splines[i].c - splines[i - 1].c) / hi;
+            splines[i].b = hi * (2.0 * splines[i].c + splines[i - 1].c) / 6.0 + (arrayY[i] - arrayY[i - 1]) / hi;
+        }
+        return splines;
+    }
+
+
+    private short getValueInterpolated(SplineItem[] splines, int x) {
+        SplineItem spline;
+        if (x <= splines[0].x)
+            spline = splines[0];
+        else if (x >= splines[splines.length - 1].x)
+            spline = splines[splines.length - 1];
+        else {
+            int i = 0;
+            int j = splines.length - 1;
+            while (i + 1 < j) {
+                int k = i + (j - i) / 2;
+                if (x <= splines[k].x)
+                    j = k;
+                else
+                    i = k;
+            }
+            spline = splines[j];
+        }
+
+        double dx = x - spline.x;
+        return (short)(spline.a + (spline.b + (spline.c / 2.0 + spline.d * dx / 6.0) * dx) * dx);
+    }
+
+
 }
+
