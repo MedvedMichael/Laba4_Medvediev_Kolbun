@@ -19,7 +19,7 @@ public class WaveFile {
 
         byte[] byteInput = new byte[(int) file.length() - headerLengthInBytes];
         short[] input = new short[(int) (byteInput.length / 2f)];
-        double kLength = 2;
+        double kLength = 0.6;
 
         try {
             FileInputStream fis = new FileInputStream(file);
@@ -44,17 +44,20 @@ public class WaveFile {
             headerOutBuf.putInt(headerInt[i]);
 
 
-        int newLength = (int) Math.ceil(byteInput.length * kLength);
+//        int newLength = (int) Math.ceil(byteInput.length * kLength);
 
-        int[] newArrayX = new int[input.length];
+        double[] newArrayX = new double[input.length];
         for (int i = 0; i < newArrayX.length; i++) {
-            newArrayX[i] = (int) Math.round(i * kLength);
+            newArrayX[i] = i * kLength;
         }
+
+        int newLength = (int) Math.floor(newArrayX[newArrayX.length - 1]);
+
 
 //        SplineItem[] splines = getSplines(newArrayX,input);
 
         //System.out.println( byteInput.length+ " L " + newLength);
-        ByteBuffer outBuf = ByteBuffer.allocate(4*newArrayX[newArrayX.length-1]);
+        ByteBuffer outBuf = ByteBuffer.allocate(2 * input.length);
         outBuf.order(ByteOrder.LITTLE_ENDIAN);
 
 //        System.out.println(Arrays.toString(newArrayX));
@@ -73,21 +76,54 @@ public class WaveFile {
 //            counter++;
 //        }
 
-
-        short lastValue = 0;
-        for (int i = 0; i < input.length; i++) {
-            short sample = input[i];
-            if ((int) Math.round((i + 1) * kLength) > i + 1) {
-                int temp = (int) ((i + 1) * kLength) - (int) (i * kLength) - 1;
-                for (int j = 0; j < temp; j++) {
-                    short tempValue = (short) Math.floor(lastValue + (short) (((float) (j + 1)) / ((float) (temp + 1)) * (sample - lastValue)));
-                    outBuf.putShort(tempValue);
-                }
-
+        for (int x = 0; x < input.length; x++) {
+            int index = 0;
+            while (newArrayX[index] < x && index < newLength) {
+                index++;
             }
-            outBuf.putShort(sample);
-            lastValue = sample;
+
+            if(index == newLength)
+            {
+                outBuf.putShort(input[input.length-1]);
+                continue;
+            }
+             if(newArrayX[index] == x)
+             {
+                 outBuf.putShort(input[index]);
+                 continue;
+             }
+
+
+             double x1 = newArrayX[index-1];
+             double x2 = newArrayX[index];
+
+             short y1 = input[index-1];
+             short y2 = input[index];
+
+             double k = (y2-y1)/(x2-x1);
+
+             // (x-x1)/(x2-x1) = (y-y1)/(y2-y1)
+             short y = (short) Math.floor((x-x1)*(y2-y1)/(x2-x1) + y1);
+             outBuf.putShort(y);
+             System.out.println(index);
         }
+
+
+        // рабочая версия!!! НЕ ТРОГАТЬ!!!
+//        short lastValue = 0;
+//        for (int i = 0; i < input.length; i++) {
+//            short sample = input[i];
+//            if ((int) Math.round((i + 1) * kLength) > i + 1) {
+//                int temp = (int) ((i + 1) * kLength) - (int) (i * kLength) - 1;
+//                for (int j = 0; j < temp; j++) {
+//                    short tempValue = (short) Math.floor(lastValue + (short) (((float) (j + 1)) / ((float) (temp + 1)) * (sample - lastValue)));
+//                    outBuf.putShort(tempValue);
+//                }
+//
+//            }
+//            outBuf.putShort(sample);
+//            lastValue = sample;
+//        }
 
         try {
             FileOutputStream fos = new FileOutputStream("test2.wav");
@@ -154,7 +190,7 @@ public class WaveFile {
         }
 
         double dx = x - spline.x;
-        return (short)(spline.a + (spline.b + (spline.c / 2.0 + spline.d * dx / 6.0) * dx) * dx);
+        return (short) (spline.a + (spline.b + (spline.c / 2.0 + spline.d * dx / 6.0) * dx) * dx);
     }
 
 
