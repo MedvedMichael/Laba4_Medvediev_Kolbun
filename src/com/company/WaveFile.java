@@ -19,7 +19,7 @@ public class WaveFile {
 
         byte[] byteInput = new byte[(int) file.length() - headerLengthInBytes];
         short[] input = new short[(int) (byteInput.length / 2f)];
-        double kLength = 0.6;
+        double kLength = 1.23456789;
 
         try {
             FileInputStream fis = new FileInputStream(file);
@@ -32,7 +32,7 @@ public class WaveFile {
 
         int[] headerInt = new int[header.length / 4];
         ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(headerInt);
-//        System.out.println(headerInt[10]);
+//        System.out.println(headerInt[headerInt.length - 1]);
         int newSize = (int) Math.ceil(headerInt[headerInt.length - 1] * kLength);
         headerInt[1] = 36 + newSize;
         headerInt[headerInt.length - 1] = newSize;
@@ -44,6 +44,7 @@ public class WaveFile {
             headerOutBuf.putInt(headerInt[i]);
 
 
+        System.out.println(input.length);
 //        int newLength = (int) Math.ceil(byteInput.length * kLength);
 
         double[] newArrayX = new double[input.length];
@@ -51,13 +52,13 @@ public class WaveFile {
             newArrayX[i] = i * kLength;
         }
 
-        int newLength = (int) Math.floor(newArrayX[newArrayX.length - 1]);
+        int newLength = newSize / 2;
 
-
+        System.out.println(newLength);
 //        SplineItem[] splines = getSplines(newArrayX,input);
 
         //System.out.println( byteInput.length+ " L " + newLength);
-        ByteBuffer outBuf = ByteBuffer.allocate(2 * input.length);
+        ByteBuffer outBuf = ByteBuffer.allocate(2 * newLength);
         outBuf.order(ByteOrder.LITTLE_ENDIAN);
 
 //        System.out.println(Arrays.toString(newArrayX));
@@ -76,36 +77,35 @@ public class WaveFile {
 //            counter++;
 //        }
 
-        for (int x = 0; x < input.length; x++) {
+        for (int x = 0; x < newLength; x++) {
             int index = 0;
-            while (newArrayX[index] < x && index < newLength) {
+            while (index < newArrayX.length && newArrayX[index] < x) {
                 index++;
             }
 
-            if(index == newLength)
-            {
-                outBuf.putShort(input[input.length-1]);
+            if (index >= newArrayX.length-1) {
+                outBuf.putShort(input[input.length - 1]);
                 continue;
             }
-             if(newArrayX[index] == x)
-             {
-                 outBuf.putShort(input[index]);
-                 continue;
-             }
+
+            if (newArrayX[index] == x) {
+                outBuf.putShort(input[index]);
+                continue;
+            }
 
 
-             double x1 = newArrayX[index-1];
-             double x2 = newArrayX[index];
+            double x1 = newArrayX[index - 1];
+            double x2 = newArrayX[index];
 
-             short y1 = input[index-1];
-             short y2 = input[index];
+            short y1 = input[index - 1];
+            short y2 = input[index];
 
-             double k = (y2-y1)/(x2-x1);
+            double k = (y2 - y1) / (x2 - x1);
 
-             // (x-x1)/(x2-x1) = (y-y1)/(y2-y1)
-             short y = (short) Math.floor((x-x1)*(y2-y1)/(x2-x1) + y1);
-             outBuf.putShort(y);
-             System.out.println(index);
+            // (x-x1)/(x2-x1) = (y-y1)/(y2-y1)
+            short y = (short) Math.floor((x - x1) * (y2 - y1) / (x2 - x1) + y1);
+            outBuf.putShort(y);
+//             System.out.println(index);
         }
 
 
