@@ -12,10 +12,13 @@ public class ByteWaveFile {
 
     ByteWaveFile(String pathToFile, int headerLengthInBytes){
         this.headerLengthInBytes = headerLengthInBytes;
+        parseFile(pathToFile);
     }
 
     private void parseFile(String pathToFile){
         File file = new File(pathToFile);
+        header = new byte[headerLengthInBytes];
+        byteInput = new byte[(int)(file.length() - headerLengthInBytes)];
         try {
             FileInputStream fis = new FileInputStream(file);
             fis.read(header, 0, header.length);
