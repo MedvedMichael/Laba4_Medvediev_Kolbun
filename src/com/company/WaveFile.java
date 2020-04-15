@@ -162,7 +162,7 @@ public class WaveFile {
         int newLength = (int) Math.round(dataShort.length*kLength);
         short[] newData = getInterpolatedData(newArrayX, newLength);
         dataShort = newData;
-        
+
     }
 
     private short[] getInterpolatedData(double[] newArrayX, int newLength) {
@@ -199,6 +199,26 @@ public class WaveFile {
         }
 
         return newArrayY;
+    }
+
+    void fileRecording(String pathOutput){
+        int fileLength = headerInt.length*4 + dataShort.length*2;
+        ByteBuffer outBuf = ByteBuffer.allocate(fileLength);
+        outBuf.order(ByteOrder.LITTLE_ENDIAN);
+        for(int i = 0; i<headerInt.length; i++){
+            outBuf.putInt(headerInt[i]);
+        }
+        for(int i = 0; i<dataShort.length; i++){
+            outBuf.putShort(dataShort[i]);
+        }
+        try {
+            FileOutputStream fos = new FileOutputStream(pathOutput);
+            fos.write(outBuf.array(), 0, fileLength);
+            fos.flush();
+            fos.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 }
