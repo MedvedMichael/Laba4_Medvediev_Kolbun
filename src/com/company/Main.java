@@ -1,6 +1,5 @@
 package com.company;
 
-import java.io.IOException;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
 
@@ -20,6 +19,7 @@ public class Main {
      static String getInput(String message) throws NoSuchElementException {
          Scanner sc = new Scanner(System.in);
          System.out.print(message);
+         sc.close();
          return sc.nextLine();
      }
 }
