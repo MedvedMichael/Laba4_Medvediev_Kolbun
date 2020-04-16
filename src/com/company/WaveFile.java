@@ -1,11 +1,8 @@
 package com.company;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
+import java.nio.ByteOrder;;
 
 public class WaveFile {
     int[] headerInt;
@@ -43,8 +40,9 @@ public class WaveFile {
 
     private short[] getInterpolatedData(double[] newArrayX, int newLength) {
         short[] newArrayY = new short[newLength];
+        int index = 0;
         for (int x = 0; x < newLength; x++) {
-            int index = 0;
+
             while (index < newArrayX.length && newArrayX[index] < x) {
                 index++;
             }
@@ -65,8 +63,6 @@ public class WaveFile {
 
             short y1 = dataShort[index - 1];
             short y2 = dataShort[index];
-
-            double k = (y2 - y1) / (x2 - x1);
 
             short y = (short) Math.floor((x - x1) * (y2 - y1) / (x2 - x1) + y1);
             newArrayY[x] = y;

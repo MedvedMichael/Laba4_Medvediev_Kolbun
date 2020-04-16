@@ -6,13 +6,13 @@ import java.util.Scanner;
 
 public class Main {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
 
         String path = getInput("Enter path to the file you want to alter: ");
         String pathOutput = getInput("Enter the name of the output file: ");
         double kLength = Double.parseDouble(getInput("Enter the coefficient: "));
-        WaveFile waveFile = new WaveFile(path);
 
+        WaveFile waveFile = new WaveFile(path);
         waveFile.changeAudioLength(kLength);
         waveFile.fileRecording(pathOutput);
     }
@@ -20,8 +20,7 @@ public class Main {
      static String getInput(String message) throws NoSuchElementException {
          Scanner sc = new Scanner(System.in);
          System.out.print(message);
-         String str = sc.nextLine();
-         return str;
+         return sc.nextLine();
      }
 }
 
